@@ -84,19 +84,16 @@ console.log('[Aria2Ex] download interceptor registered');
 // browser.action.openPopup() must be called from an onClicked handler.
 
 browser.action.onClicked.addListener(async (_tab, info) => {
-	console.log('[Aria2Ex] action clicked, button:', info?.button);
 	if (info?.button === 1) {
 		// Middle-click → toggle
 		const newEnabled = await toggleEnabled();
 		await updateIconForState(newEnabled);
 		return;
 	}
-	// Left-click → open the popup panel
-	try {
-		await browser.action.openPopup();
-	} catch (e) {
-		console.error('[Aria2Ex] openPopup failed', e);
-	}
+	// Left-click → open the popup panel (must be called synchronously)
+	browser.action.openPopup().catch((e) =>
+		console.error('[Aria2Ex] openPopup failed', e),
+	);
 });
 
 // ─── Keyboard command ───────────────────────────────────────────────────────
