@@ -1,6 +1,7 @@
 import browser, { type Action, type Windows } from 'webextension-polyfill';
 
 import { cacheRemove } from '@/lib/session-cache';
+import { isEnabled } from '@/lib/storage';
 import {
 	type Config,
 	DEFAULT_CONFIG,
@@ -165,6 +166,11 @@ export abstract class BaseBrowserClient<T extends { id: number }>
 	}
 
 	protected async handleDownloadIntercept(item: T): Promise<void> {
+		// Skip interception when extension is disabled
+		if (!(await isEnabled())) {
+			return;
+		}
+
 		const id = item.id;
 		const fileDetail = await this.getDownloadDetail(item);
 		if (this.shouldIgnoreDownloadURL(fileDetail.url)) {

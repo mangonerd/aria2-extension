@@ -9,6 +9,8 @@ export enum MessageType {
 	StartJobs = 'startJobs',
 	PauseJobs = 'pauseJobs',
 	RemoveJobs = 'removeJobs',
+	ToggleEnabled = 'toggleEnabled',
+	GetEnabled = 'getEnabled',
 }
 
 export const DownloadSchema = z.object({
@@ -40,6 +42,8 @@ export const MessageSchema = z.discriminatedUnion('type', [
 		type: z.literal(MessageType.RemoveJobs),
 		gids: z.array(z.string()),
 	}),
+	z.object({ type: z.literal(MessageType.ToggleEnabled) }),
+	z.object({ type: z.literal(MessageType.GetEnabled) }),
 ]);
 
 export type Message = z.infer<typeof MessageSchema>;
