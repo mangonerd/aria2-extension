@@ -1,7 +1,7 @@
 {
   "name": "aria2-extension",
   "displayName": "Aria2 Integration Extension",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "private": true,
   "scripts": {
     "analyze": "npx vite-bundle-visualizer",

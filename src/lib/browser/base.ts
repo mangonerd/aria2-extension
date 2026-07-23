@@ -165,21 +165,34 @@ export abstract class BaseBrowserClient<T extends { id: number }>
 		await this.createDownloadPanel(detail);
 	}
 
+	/**
+	 * Intercept a download: cancel it immediately in Firefox, then route to aria2.
+	 * The cancel must happen before the slow HEAD request so the user sees
+	 * minimal (ideally zero) flash of Firefox's download UI.
+	 */
 	protected async handleDownloadIntercept(item: T): Promise<void> {
-		// Skip interception when extension is disabled
+		const id = item.id;
+		const url = item.url || (item as { finalUrl?: string }).finalUrl || '';
+
+		// Fast synchronous-ish checks (no network)
 		if (!(await isEnabled())) {
 			return;
 		}
+		if (this.shouldIgnoreDownloadURL(url)) {
+			return;
+		}
 
-		const id = item.id;
+		// Cancel immediately — this stops Firefox from showing the download
+		await browser.downloads.cancel(id).catch(() => {
+			/* already cancelled or gone */
+		});
+
+		// Now do the slow work (HEAD request, etc.)
+		if (await cacheRemove(url)) {
+			return;
+		}
+
 		const fileDetail = await this.getDownloadDetail(item);
-		if (this.shouldIgnoreDownloadURL(fileDetail.url)) {
-			return;
-		}
-		if (await cacheRemove(fileDetail.url)) {
-			return;
-		}
-		await this.cancelDownload(id);
 		await this.prepareDownload(fileDetail);
 	}
 
