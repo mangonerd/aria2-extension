@@ -13,12 +13,10 @@ const TOGGLE_CONTEXT_ID = 'toggle-aria2ex';
 
 async function updateIconForState(enabled: boolean): Promise<void> {
 	if (!enabled) {
-		// Show "OFF" badge with red background
 		await browser.action.setBadgeText({ text: 'OFF' });
 		await browser.action.setBadgeBackgroundColor({ color: '#cc0000' });
 		await browser.action.setTitle({ title: 'Aria2Ex (DISABLED)' });
 	} else {
-		// Clear the disabled badge — the polling loop will restore job count
 		await browser.action.setBadgeText({ text: '' });
 		await browser.action.setTitle({ title: 'Aria2Ex' });
 	}
@@ -26,29 +24,31 @@ async function updateIconForState(enabled: boolean): Promise<void> {
 
 // ─── Context menus ──────────────────────────────────────────────────────────
 
+// Create context menus at top level so they exist on every service worker start
 browser.runtime.onInstalled.addListener(async () => {
-	// Existing: right-click on links/videos/audio
-	browser.contextMenus.create({
-		id: CONTEXT_ID,
-		title: 'Download with Aria2',
-		contexts: ['link', 'video', 'audio'],
-	});
-
-	// New: right-click on the extension icon itself
-	browser.contextMenus.create({
-		id: TOGGLE_CONTEXT_ID,
-		title: 'Toggle Aria2Ex',
-		contexts: ['browser_action'],
-	});
-
-	// Set initial icon state
 	const enabled = await isEnabled();
 	await updateIconForState(enabled);
 });
 
+// Right-click on links/videos/audio
+browser.contextMenus.create({
+	id: CONTEXT_ID,
+	title: 'Download with Aria2',
+	contexts: ['link', 'video', 'audio'],
+});
+
+// Right-click on the extension icon itself
+browser.contextMenus.create({
+	id: TOGGLE_CONTEXT_ID,
+	title: 'Toggle Aria2Ex',
+	contexts: ['browser_action'],
+});
+
+// Initialize icon state on startup
+isEnabled().then(updateIconForState);
+
 browser.contextMenus.onClicked.addListener(async (info, _tab) => {
 	if (info.menuItemId === CONTEXT_ID) {
-		// Gate the "Download with Aria2" context menu behind enabled flag
 		if (!(await isEnabled())) {
 			return;
 		}
@@ -68,9 +68,6 @@ browser.contextMenus.onClicked.addListener(async (info, _tab) => {
 	if (info.menuItemId === TOGGLE_CONTEXT_ID) {
 		const newEnabled = await toggleEnabled();
 		await updateIconForState(newEnabled);
-		await client.notify(
-			newEnabled ? 'Aria2Ex enabled.' : 'Aria2Ex disabled.',
-		);
 	}
 });
 
@@ -78,25 +75,48 @@ browser.contextMenus.onClicked.addListener(async (info, _tab) => {
 
 client.registerDownloadInterceptor();
 
-// ─── Middle-click toggle on extension icon ───────────────────────────────────
-// Removing default_popup from manifest enables this listener.
-// Left-click  (button 0) → open the popup UI
-// Middle-click (button 1) → toggle enabled/disabled
+// ─── Middle-click toggle + left-click popup ──────────────────────────────────
 
 browser.action.onClicked.addListener(async (_tab, info) => {
 	if (info?.button === 1) {
 		// Middle-click → toggle
 		const newEnabled = await toggleEnabled();
 		await updateIconForState(newEnabled);
-		await client.notify(
-			newEnabled ? 'Aria2Ex enabled.' : 'Aria2Ex disabled.',
-		);
 		return;
 	}
 
-	// Left-click → open popup programmatically
-	if (browser.action.openPopup) {
-		await browser.action.openPopup();
+	// Left-click → open popup page in a small window
+	try {
+		const baseUrl = browser.runtime.getURL('index.html');
+		const w = 400;
+		const h = 500;
+		const dualScreenLeft = window.screenLeft ?? window.screenX;
+		const dualScreenTop = window.screenTop ?? window.screenY;
+		const width = window.innerWidth
+			? window.innerWidth
+			: document.documentElement.clientWidth
+				? document.documentElement.clientWidth
+				: screen.width;
+		const height = window.innerHeight
+			? window.innerHeight
+			: document.documentElement.clientHeight
+				? document.documentElement.clientHeight
+				: screen.height;
+		const systemZoom = width / window.screen.availWidth;
+		const top = Math.round((height - h) / 2 / systemZoom + dualScreenTop);
+		const left = Math.round((width - w) / 2 / systemZoom + dualScreenLeft);
+
+		await browser.windows.create({
+			url: baseUrl,
+			type: 'popup',
+			top,
+			left,
+			width: w,
+			height: h,
+			focused: true,
+		});
+	} catch (e) {
+		console.error('Failed to open popup', e);
 	}
 });
 
@@ -177,7 +197,6 @@ async function updateActiveJobNumber(): Promise<void> {
 	try {
 		const enabled = await isEnabled();
 		if (!enabled) {
-			// When disabled, keep the "OFF" badge and skip aria2 polling
 			await updateIconForState(false);
 			pollInterval = POLL_MIN;
 		} else {
