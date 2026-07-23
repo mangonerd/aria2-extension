@@ -6,6 +6,8 @@ import { cacheSet } from '@/lib/session-cache';
 import { isEnabled, toggleEnabled } from '@/lib/storage';
 import { MessageSchema, MessageType } from '@/types';
 
+console.log('[Aria2Ex] background script loaded');
+
 const CONTEXT_ID = 'download-with-aria';
 const TOGGLE_CONTEXT_ID = 'toggle-aria2ex';
 
@@ -24,20 +26,27 @@ async function updateIconForState(enabled: boolean): Promise<void> {
 
 // ─── Context menus (top-level — runs on every service worker start) ────────
 
-browser.contextMenus.create({
-	id: CONTEXT_ID,
-	title: 'Download with Aria2',
-	contexts: ['link', 'video', 'audio'],
-});
-
-browser.contextMenus.create({
-	id: TOGGLE_CONTEXT_ID,
-	title: 'Toggle Aria2Ex',
-	contexts: ['browser_action'],
-});
+try {
+	browser.contextMenus.create({
+		id: CONTEXT_ID,
+		title: 'Download with Aria2',
+		contexts: ['link', 'video', 'audio'],
+	});
+	browser.contextMenus.create({
+		id: TOGGLE_CONTEXT_ID,
+		title: 'Toggle Aria2Ex',
+		contexts: ['action'],
+	});
+	console.log('[Aria2Ex] context menus created');
+} catch (e) {
+	console.error('[Aria2Ex] failed to create context menus', e);
+}
 
 // Initialize icon state on startup
-isEnabled().then(updateIconForState);
+isEnabled()
+	.then(updateIconForState)
+	.then(() => console.log('[Aria2Ex] icon state initialized'))
+	.catch((e) => console.error('[Aria2Ex] icon init failed', e));
 
 // ─── Context menu click handler ─────────────────────────────────────────────
 
@@ -68,11 +77,12 @@ browser.contextMenus.onClicked.addListener(async (info, _tab) => {
 // ─── Download interceptor ───────────────────────────────────────────────────
 
 client.registerDownloadInterceptor();
+console.log('[Aria2Ex] download interceptor registered');
 
 // ─── Middle-click toggle + left-click popup ──────────────────────────────────
-// NO window, document, or screen — service workers don't have them.
 
 browser.action.onClicked.addListener(async (_tab, info) => {
+	console.log('[Aria2Ex] action clicked, button:', info?.button);
 	if (info?.button === 1) {
 		// Middle-click → toggle
 		const newEnabled = await toggleEnabled();

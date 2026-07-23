@@ -51,7 +51,7 @@ export const Firefox: Manifest.WebExtensionManifest = {
 	},
 	browser_specific_settings: {
 		gecko: {
-			id: '{9e3f5f09-a4c6-43c2-8715-cac81530a5ce}',
+			id: '{b3b1e4a8-7f2c-4d9e-a6c5-8e1f0b3d2a71}',
 		},
 	},
 };
