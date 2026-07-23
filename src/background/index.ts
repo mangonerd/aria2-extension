@@ -6,8 +6,6 @@ import { cacheSet } from '@/lib/session-cache';
 import { isEnabled, toggleEnabled } from '@/lib/storage';
 import { MessageSchema, MessageType } from '@/types';
 
-console.log('[Aria2Ex] background script loaded');
-
 const CONTEXT_ID = 'download-with-aria';
 const TOGGLE_CONTEXT_ID = 'toggle-aria2ex';
 
@@ -37,16 +35,12 @@ try {
 		title: 'Toggle Aria2Ex',
 		contexts: ['action'],
 	});
-	console.log('[Aria2Ex] context menus created');
 } catch (e) {
 	console.error('[Aria2Ex] failed to create context menus', e);
 }
 
 // Initialize icon state on startup
-isEnabled()
-	.then(updateIconForState)
-	.then(() => console.log('[Aria2Ex] icon state initialized'))
-	.catch((e) => console.error('[Aria2Ex] icon init failed', e));
+isEnabled().then(updateIconForState);
 
 // ─── Context menu click handler ─────────────────────────────────────────────
 
@@ -77,24 +71,6 @@ browser.contextMenus.onClicked.addListener(async (info, _tab) => {
 // ─── Download interceptor ───────────────────────────────────────────────────
 
 client.registerDownloadInterceptor();
-console.log('[Aria2Ex] download interceptor registered');
-
-// ─── Left-click → popup, middle-click → toggle ──────────────────────────────
-// No default_popup in manifest, so onClicked fires for all clicks.
-// browser.action.openPopup() must be called from an onClicked handler.
-
-browser.action.onClicked.addListener(async (_tab, info) => {
-	if (info?.button === 1) {
-		// Middle-click → toggle
-		const newEnabled = await toggleEnabled();
-		await updateIconForState(newEnabled);
-		return;
-	}
-	// Left-click → open the popup panel (must be called synchronously)
-	browser.action.openPopup().catch((e) =>
-		console.error('[Aria2Ex] openPopup failed', e),
-	);
-});
 
 // ─── Keyboard command ───────────────────────────────────────────────────────
 

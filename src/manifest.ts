@@ -27,6 +27,7 @@ const base = {
 		},
 	},
 	action: {
+		default_popup: 'index.html',
 		default_title: 'Aria2Ex',
 	},
 	options_ui: {
