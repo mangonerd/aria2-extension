@@ -79,32 +79,6 @@ browser.contextMenus.onClicked.addListener(async (info, _tab) => {
 client.registerDownloadInterceptor();
 console.log('[Aria2Ex] download interceptor registered');
 
-// ─── Middle-click toggle + left-click popup ──────────────────────────────────
-
-browser.action.onClicked.addListener(async (_tab, info) => {
-	console.log('[Aria2Ex] action clicked, button:', info?.button);
-	if (info?.button === 1) {
-		// Middle-click → toggle
-		const newEnabled = await toggleEnabled();
-		await updateIconForState(newEnabled);
-		return;
-	}
-
-	// Left-click → open popup in a centered window
-	try {
-		const url = browser.runtime.getURL('index.html');
-		await browser.windows.create({
-			url,
-			type: 'popup',
-			width: 400,
-			height: 500,
-			focused: true,
-		});
-	} catch (e) {
-		console.error('Failed to open popup', e);
-	}
-});
-
 // ─── Keyboard command ───────────────────────────────────────────────────────
 
 browser.commands.onCommand.addListener((command: string) => {
