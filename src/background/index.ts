@@ -76,23 +76,12 @@ client.registerDownloadInterceptor();
 
 browser.action.onClicked.addListener(async (_tab, info) => {
 	if (info?.button === 1) {
-		// Middle-click → toggle
 		const newEnabled = await toggleEnabled();
 		await updateIconForState(newEnabled);
 		return;
 	}
-	// Left-click → open popup in a small popup window
-	try {
-		await browser.windows.create({
-			url: browser.runtime.getURL('index.html'),
-			type: 'popup',
-			width: 400,
-			height: 500,
-			focused: true,
-		});
-	} catch (e) {
-		console.error('[Aria2Ex] failed to open popup', e);
-	}
+	// Left-click → open AriaNg
+	client.openDetail(false);
 });
 
 // ─── Keyboard command ───────────────────────────────────────────────────────
