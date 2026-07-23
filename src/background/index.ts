@@ -22,22 +22,14 @@ async function updateIconForState(enabled: boolean): Promise<void> {
 	}
 }
 
-// ─── Context menus ──────────────────────────────────────────────────────────
+// ─── Context menus (top-level — runs on every service worker start) ────────
 
-// Create context menus at top level so they exist on every service worker start
-browser.runtime.onInstalled.addListener(async () => {
-	const enabled = await isEnabled();
-	await updateIconForState(enabled);
-});
-
-// Right-click on links/videos/audio
 browser.contextMenus.create({
 	id: CONTEXT_ID,
 	title: 'Download with Aria2',
 	contexts: ['link', 'video', 'audio'],
 });
 
-// Right-click on the extension icon itself
 browser.contextMenus.create({
 	id: TOGGLE_CONTEXT_ID,
 	title: 'Toggle Aria2Ex',
@@ -46,6 +38,8 @@ browser.contextMenus.create({
 
 // Initialize icon state on startup
 isEnabled().then(updateIconForState);
+
+// ─── Context menu click handler ─────────────────────────────────────────────
 
 browser.contextMenus.onClicked.addListener(async (info, _tab) => {
 	if (info.menuItemId === CONTEXT_ID) {
@@ -76,6 +70,8 @@ browser.contextMenus.onClicked.addListener(async (info, _tab) => {
 client.registerDownloadInterceptor();
 
 // ─── Middle-click toggle + left-click popup ──────────────────────────────────
+// No default_popup in manifest → onClicked fires for all clicks.
+// No window/document in MV3 service worker — use screen directly.
 
 browser.action.onClicked.addListener(async (_tab, info) => {
 	if (info?.button === 1) {
@@ -85,29 +81,18 @@ browser.action.onClicked.addListener(async (_tab, info) => {
 		return;
 	}
 
-	// Left-click → open popup page in a small window
+	// Left-click → open popup in a small centered window
 	try {
-		const baseUrl = browser.runtime.getURL('index.html');
+		const url = browser.runtime.getURL('index.html');
 		const w = 400;
 		const h = 500;
-		const dualScreenLeft = window.screenLeft ?? window.screenX;
-		const dualScreenTop = window.screenTop ?? window.screenY;
-		const width = window.innerWidth
-			? window.innerWidth
-			: document.documentElement.clientWidth
-				? document.documentElement.clientWidth
-				: screen.width;
-		const height = window.innerHeight
-			? window.innerHeight
-			: document.documentElement.clientHeight
-				? document.documentElement.clientHeight
-				: screen.height;
-		const systemZoom = width / window.screen.availWidth;
-		const top = Math.round((height - h) / 2 / systemZoom + dualScreenTop);
-		const left = Math.round((width - w) / 2 / systemZoom + dualScreenLeft);
+		const sW = screen.width;
+		const sH = screen.height;
+		const top = Math.round((sH - h) / 2);
+		const left = Math.round((sW - w) / 2);
 
 		await browser.windows.create({
-			url: baseUrl,
+			url,
 			type: 'popup',
 			top,
 			left,
@@ -140,7 +125,6 @@ browser.runtime.onMessage.addListener(async (data: unknown) => {
 		return cacheSet(result.data.message);
 	}
 
-	// Handle toggle/getEnabled messages regardless of enabled state
 	if (result.data.type === MessageType.ToggleEnabled) {
 		const newEnabled = await toggleEnabled();
 		await updateIconForState(newEnabled);
