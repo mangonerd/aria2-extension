@@ -70,8 +70,7 @@ browser.contextMenus.onClicked.addListener(async (info, _tab) => {
 client.registerDownloadInterceptor();
 
 // ─── Middle-click toggle + left-click popup ──────────────────────────────────
-// No default_popup in manifest → onClicked fires for all clicks.
-// No window/document in MV3 service worker — use screen directly.
+// NO window, document, or screen — service workers don't have them.
 
 browser.action.onClicked.addListener(async (_tab, info) => {
 	if (info?.button === 1) {
@@ -81,23 +80,14 @@ browser.action.onClicked.addListener(async (_tab, info) => {
 		return;
 	}
 
-	// Left-click → open popup in a small centered window
+	// Left-click → open popup in a centered window
 	try {
 		const url = browser.runtime.getURL('index.html');
-		const w = 400;
-		const h = 500;
-		const sW = screen.width;
-		const sH = screen.height;
-		const top = Math.round((sH - h) / 2);
-		const left = Math.round((sW - w) / 2);
-
 		await browser.windows.create({
 			url,
 			type: 'popup',
-			top,
-			left,
-			width: w,
-			height: h,
+			width: 400,
+			height: 500,
 			focused: true,
 		});
 	} catch (e) {
