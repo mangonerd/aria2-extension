@@ -41,13 +41,12 @@ export abstract class BaseBrowserClient<T extends { id: number }>
 		return browser.storage.local.set({ config });
 	}
 
-	async openDetail(fromExtension: boolean): Promise<void> {
+	async openDetail(_fromExtension: boolean): Promise<void> {
 		try {
 			const data = await browser.storage.local.get('config');
 			const config = (data.config as Config) || DEFAULT_CONFIG;
 			const url = `manager/index.html#!/settings/rpc/set/${config.protocol}/${config.host}/${config.port}/jsonrpc/${btoa(config.token)}`;
 			await browser.tabs.create({ url });
-			if (fromExtension) window.close();
 		} catch (err) {
 			console.error('Open Detail Page', err);
 		}
@@ -55,7 +54,6 @@ export abstract class BaseBrowserClient<T extends { id: number }>
 
 	async openSetting(): Promise<void> {
 		await browser.runtime.openOptionsPage();
-		window.close();
 	}
 
 	protected async removeBlankTab(): Promise<void> {
@@ -160,21 +158,27 @@ export abstract class BaseBrowserClient<T extends { id: number }>
 		);
 	}
 
+	/** Extract URL from a download item without the slow HEAD request */
+	protected getItemUrl(item: T): string {
+		const rec = item as Record<string, unknown>;
+		return (rec.finalUrl as string) || (rec.url as string) || '';
+	}
+
 	protected async prepareDownload(detail: FileDetail): Promise<void> {
 		await this.removeBlankTab();
 		await this.createDownloadPanel(detail);
 	}
 
 	/**
-	 * Intercept a download: cancel it immediately in Firefox, then route to aria2.
-	 * The cancel must happen before the slow HEAD request so the user sees
-	 * minimal (ideally zero) flash of Firefox's download UI.
+	 * Intercept a download: cancel it immediately, then route to aria2.
+	 * Cancel happens before the slow HEAD request so Firefox's download UI
+	 * barely flashes (or doesn't flash at all).
 	 */
 	protected async handleDownloadIntercept(item: T): Promise<void> {
 		const id = item.id;
-		const url = item.url || (item as { finalUrl?: string }).finalUrl || '';
+		const url = this.getItemUrl(item);
 
-		// Fast synchronous-ish checks (no network)
+		// Fast checks first (no network)
 		if (!(await isEnabled())) {
 			return;
 		}
@@ -182,12 +186,10 @@ export abstract class BaseBrowserClient<T extends { id: number }>
 			return;
 		}
 
-		// Cancel immediately — this stops Firefox from showing the download
-		await browser.downloads.cancel(id).catch(() => {
-			/* already cancelled or gone */
-		});
+		// Cancel immediately — stops Firefox from showing the download
+		await browser.downloads.cancel(id).catch(() => {});
 
-		// Now do the slow work (HEAD request, etc.)
+		// Now do the slow work
 		if (await cacheRemove(url)) {
 			return;
 		}
