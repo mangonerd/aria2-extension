@@ -79,6 +79,26 @@ browser.contextMenus.onClicked.addListener(async (info, _tab) => {
 client.registerDownloadInterceptor();
 console.log('[Aria2Ex] download interceptor registered');
 
+// ─── Left-click → popup, middle-click → toggle ──────────────────────────────
+// No default_popup in manifest, so onClicked fires for all clicks.
+// browser.action.openPopup() must be called from an onClicked handler.
+
+browser.action.onClicked.addListener(async (_tab, info) => {
+	console.log('[Aria2Ex] action clicked, button:', info?.button);
+	if (info?.button === 1) {
+		// Middle-click → toggle
+		const newEnabled = await toggleEnabled();
+		await updateIconForState(newEnabled);
+		return;
+	}
+	// Left-click → open the popup panel
+	try {
+		await browser.action.openPopup();
+	} catch (e) {
+		console.error('[Aria2Ex] openPopup failed', e);
+	}
+});
+
 // ─── Keyboard command ───────────────────────────────────────────────────────
 
 browser.commands.onCommand.addListener((command: string) => {
